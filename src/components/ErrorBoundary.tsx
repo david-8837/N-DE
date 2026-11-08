@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { reportDiagnostic } from '../utils/desktop';
 
 interface Props {
   children: ReactNode;
@@ -25,6 +26,11 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('NØDE App Uncaught Error:', error, errorInfo);
     this.setState({ error, errorInfo });
+    // The main process drops this unless the user enabled local diagnostics.
+    void reportDiagnostic({
+      message: error.message,
+      stack: `${error.stack || ''}\n${errorInfo.componentStack || ''}`,
+    });
   }
 
   private handleReset = () => {

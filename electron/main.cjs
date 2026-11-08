@@ -1,5 +1,5 @@
 // electron/main.cjs - NØDE Grid Macro 1 Desktop Application Entry Point for Windows
-const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, shell, Notification } = require('electron');
 const { spawn, execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -23,6 +23,14 @@ function isTrustedSender(event) {
     return false;
   }
 }
+
+// Renderer-owned preferences that the main process actually enforces.
+// Terminal execution defaults to denied until the renderer pushes its policy.
+const runtimePolicy = {
+  allowTerminal: false,
+  allowNotifications: true,
+  allowAnalytics: false,
+};
 
 // Binaries Smart Actions are allowed to run without a shell.
 const SAFE_COMMAND_BINARIES = new Set([
@@ -548,6 +556,13 @@ ipcMain.handle('execute-smart-action', async (event, payload) => {
       }
       return { success: true, message: `Launched App: ${appTarget}` };
     } else if (type === 'Cmd') {
+      if (!runtimePolicy.allowTerminal) {
+        return {
+          success: false,
+          error:
+            'Blocked: local terminal execution is disabled in Settings → Security & Execution Sandbox.',
+        };
+      }
       // Command sanitization & execution protection
       const rawCmd = value.trim();
       // Block dangerous chaining operators when untrusted
@@ -597,6 +612,97 @@ ipcMain.handle('execute-smart-action', async (event, payload) => {
     return { success: false, error: err.message };
   }
   return { success: false };
+});
+
+// Runtime policy pushed by the renderer (enforced here, in the main process).
+ipcMain.handle('set-runtime-policy', (event, payload = {}) => {
+  if (!isTrustedSender(event)) return { success: false };
+  if (typeof payload?.allowTerminal === 'boolean') {
+    runtimePolicy.allowTerminal = payload.allowTerminal;
+  }
+  if (typeof payload?.allowNotifications === 'boolean') {
+    runtimePolicy.allowNotifications = payload.allowNotifications;
+  }
+  if (typeof payload?.allowAnalytics === 'boolean') {
+    runtimePolicy.allowAnalytics = payload.allowAnalytics;
+  }
+  return { success: true, policy: { ...runtimePolicy } };
+});
+
+// Launch at login (Windows/macOS login items).
+ipcMain.handle('set-launch-at-startup', (event, enabled) => {
+  if (!isTrustedSender(event)) return { success: false, supported: false };
+  if (process.platform === 'linux') {
+    return {
+      success: false,
+      supported: false,
+      error: 'Login items are not managed by the app on Linux.',
+    };
+  }
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!enabled,
+      openAsHidden: true,
+      path: process.execPath,
+      args: [],
+    });
+    return { success: true, supported: true, enabled: !!enabled };
+  } catch (err) {
+    return { success: false, supported: true, error: err.message };
+  }
+});
+
+ipcMain.handle('get-launch-at-startup', (event) => {
+  if (!isTrustedSender(event)) return { supported: false, enabled: false };
+  if (process.platform === 'linux') return { supported: false, enabled: false };
+  try {
+    return { supported: true, enabled: !!app.getLoginItemSettings().openAtLogin };
+  } catch {
+    return { supported: true, enabled: false };
+  }
+});
+
+// Device connect/disconnect notifications, suppressed when the user opts out.
+ipcMain.handle('notify-device-event', (event, payload = {}) => {
+  if (!isTrustedSender(event)) return { success: false };
+  if (!runtimePolicy.allowNotifications) return { success: false, suppressed: true };
+  if (!Notification.isSupported()) return { success: false, unsupported: true };
+  try {
+    const connected = !!payload?.connected;
+    const device =
+      typeof payload?.device === 'string' && payload.device.trim()
+        ? payload.device.trim().slice(0, 80)
+        : 'RP2040-Zero';
+    new Notification({
+      title: connected ? 'RP2040-Zero connected' : 'RP2040-Zero disconnected',
+      body: connected ? `${device} is ready for keymap sync.` : 'Keymap session ended.',
+      silent: true,
+    }).show();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// Local-only crash diagnostics, only when the user opted in.
+ipcMain.handle('report-diagnostic', (event, payload = {}) => {
+  if (!isTrustedSender(event)) return { success: false };
+  if (!runtimePolicy.allowAnalytics) return { success: false, suppressed: true };
+  try {
+    const line =
+      JSON.stringify({
+        at: new Date().toISOString(),
+        app: app.getVersion(),
+        platform: process.platform,
+        message: String(payload?.message || '').slice(0, 500),
+        stack: String(payload?.stack || '').slice(0, 2000),
+      }) + '\n';
+    const logPath = path.join(app.getPath('userData'), 'diagnostics.log');
+    fs.appendFileSync(logPath, line, 'utf8');
+    return { success: true, path: logPath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 // App Lifecycle

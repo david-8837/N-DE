@@ -5,6 +5,7 @@ import {
   ProfileData,
 } from '../types';
 import { getEncoderActions } from '../utils/helpers';
+import { notifyDeviceEvent } from '../utils/desktop';
 
 interface UseHardwareStateProps {
   currentLayer: LayerKeymap;
@@ -13,6 +14,10 @@ interface UseHardwareStateProps {
   showToast: (msg: string) => void;
   setDialAngle: React.Dispatch<React.SetStateAction<number>>;
   onNavigateToHardware: () => void;
+  /** Opt-out for OS notifications on connect/disconnect. */
+  allowDeviceNotifications: boolean;
+  /** When false, host-assisted terminal actions are refused client-side too. */
+  allowTerminalSmartActions: boolean;
 }
 
 export function useHardwareState({
@@ -21,6 +26,8 @@ export function useHardwareState({
   activeLayerIndex,
   showToast,
   setDialAngle,
+  allowDeviceNotifications,
+  allowTerminalSmartActions,
 }: UseHardwareStateProps) {
   const [hardwareConnected, setHardwareConnected] = useState(false);
   const [hardwarePort, setHardwarePort] = useState<any>(null);
@@ -79,6 +86,10 @@ export function useHardwareState({
     try {
       const payload = JSON.parse(bindingStr.slice(6));
       if (payload.type === 'terminal' && payload.terminalCmd) {
+        if (!allowTerminalSmartActions) {
+          showToast('Terminal actions are disabled in Settings');
+          return;
+        }
         if ((window as any).electronAPI?.executeSmartAction) {
           const res = await (window as any).electronAPI.executeSmartAction(
             payload
@@ -107,6 +118,9 @@ export function useHardwareState({
       setHardwareConnected(true);
       addHardwareLog('Connected to RP2040-Zero at 115200 baud');
       showToast('RP2040-Zero Connected over Web Serial');
+      if (allowDeviceNotifications) {
+        void notifyDeviceEvent(true, 'RP2040-Zero');
+      }
 
       const textDecoder = new TextDecoderStream();
       port.readable.pipeTo(textDecoder.writable);
@@ -224,6 +238,9 @@ export function useHardwareState({
     setHardwareConnected(false);
     addHardwareLog('Disconnected from RP2040-Zero');
     showToast('Disconnected from hardware');
+    if (allowDeviceNotifications) {
+      void notifyDeviceEvent(false, 'RP2040-Zero');
+    }
   };
 
   const handleSyncKeymapToHardware = async () => {

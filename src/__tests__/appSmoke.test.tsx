@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import App from '../App';
 import { STORAGE_KEYS } from '../utils/storage';
 
@@ -14,7 +14,7 @@ describe('Studio app smoke test', () => {
     localStorage.clear();
   });
 
-  it('renders the keymap, persists edits and keeps the applied preset accurate', () => {
+  it('renders the keymap, persists edits and keeps the applied preset accurate', async () => {
     render(<App />);
 
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
@@ -48,11 +48,28 @@ describe('Studio app smoke test', () => {
     expect(applied[0]).toBeDisabled();
     expect(screen.getAllByRole('button', { name: /apply preset/i })).toHaveLength(3);
 
+    // Undo puts the layer back; redo re-applies the preset.
+    expect(screen.getByRole('button', { name: /undo last change/i })).toBeEnabled();
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(screen.queryAllByRole('button', { name: /applied/i })).toHaveLength(0);
+    expect(screen.getAllByRole('button', { name: /apply preset/i })).toHaveLength(4);
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    expect(screen.getAllByRole('button', { name: /applied/i })).toHaveLength(1);
+
+    // The header buttons mirror the stack.
+    fireEvent.click(screen.getByRole('button', { name: /undo last change/i }));
+    expect(screen.queryAllByRole('button', { name: /applied/i })).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: /redo change/i }));
+    expect(screen.getAllByRole('button', { name: /applied/i })).toHaveLength(1);
+
     // Settings switches are real switches and persist.
     fireEvent.click(nav(/app settings/i));
     const startup = screen.getByRole('switch', { name: /launch at windows startup/i });
     expect(startup).toHaveAttribute('aria-checked', 'false');
-    fireEvent.click(startup);
+    await act(async () => {
+      fireEvent.click(startup);
+    });
     expect(startup).toHaveAttribute('aria-checked', 'true');
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.settings) || '{}')).toMatchObject({
       launchAtStartup: true,

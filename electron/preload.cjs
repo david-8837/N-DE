@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detectRp2040Bootloader: () => ipcRenderer.invoke('detect-rp2040-bootloader'),
   flashUf2Firmware: (payload) => ipcRenderer.invoke('flash-uf2-firmware', payload),
   executeSmartAction: (payload) => ipcRenderer.invoke('execute-smart-action', payload),
+  setRuntimePolicy: (policy) => ipcRenderer.invoke('set-runtime-policy', policy),
+  setLaunchAtStartup: (enabled) => ipcRenderer.invoke('set-launch-at-startup', enabled),
+  getLaunchAtStartup: () => ipcRenderer.invoke('get-launch-at-startup'),
+  notifyDeviceEvent: (payload) => ipcRenderer.invoke('notify-device-event', payload),
+  reportDiagnostic: (payload) => ipcRenderer.invoke('report-diagnostic', payload),
   onHardwareSync: (callback) => {
     ipcRenderer.on('trigger-hardware-sync', () => callback());
   },

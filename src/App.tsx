@@ -24,6 +24,12 @@ import { HardwareManagerView } from './views/HardwareManagerView';
 import { useHardwareState } from './hooks/useHardwareState';
 import { usePersistentState } from './hooks/usePersistentState';
 import { usePresetRatings } from './hooks/usePresetRatings';
+import { useDocumentHistory } from './hooks/useDocumentHistory';
+import {
+  pushRuntimePolicy,
+  readLaunchAtStartup,
+  writeLaunchAtStartup,
+} from './utils/desktop';
 import {
   DEFAULT_SETTINGS,
   PersistedSettings,
@@ -131,6 +137,104 @@ export default function App() {
     []
   );
 
+  // Undo/redo covers the editable document: profiles + layer names.
+  const history = useDocumentHistory<{
+    profiles: ProfileData[];
+    layerNames: Record<string, string>;
+  }>(
+    { profiles, layerNames },
+    (next) => {
+      setProfiles(next.profiles);
+      setLayerNames(next.layerNames);
+    }
+  );
+
+  const checkpoint = (coalesceKey?: string) =>
+    history.record({ profiles, layerNames }, coalesceKey);
+
+  const handleUndo = () => {
+    showToast(history.undo() ? 'Undid last change' : 'Nothing left to undo');
+  };
+
+  const handleRedo = () => {
+    showToast(history.redo() ? 'Redid change' : 'Nothing left to redo');
+  };
+
+  // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y), but never while typing in a field.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) handleRedo();
+        else handleUndo();
+      } else if (key === 'y') {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // No dependency array on purpose: re-bind each render so the handler always
+    // sees the current undo/redo stack.
+  });
+
+  // Keep the main process's enforcement policy in sync with the UI toggles.
+  useEffect(() => {
+    void pushRuntimePolicy({
+      allowTerminal: allowTerminalSmartActions,
+      allowNotifications: allowDeviceNotifications,
+      allowAnalytics,
+    });
+  }, [allowTerminalSmartActions, allowDeviceNotifications, allowAnalytics]);
+
+  // Reflect the real OS login-item state instead of trusting stale local state.
+  useEffect(() => {
+    let cancelled = false;
+    void readLaunchAtStartup().then((state) => {
+      if (!cancelled && state?.supported && state.enabled !== settings.launchAtStartup) {
+        setSettings((prev) => ({ ...prev, launchAtStartup: state.enabled }));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Runs once: this only reconciles the stored toggle with the OS on launch.
+  }, []);
+
+  const handleSetLaunchAtStartup = (val: boolean) => {
+    setLaunchAtStartup(val);
+    void writeLaunchAtStartup(val).then((result) => {
+      if (!result.supported) {
+        showToast('Launch at startup needs the desktop app; saved for later');
+        return;
+      }
+      if (!result.success) {
+        setLaunchAtStartup(!val);
+        showToast(`Could not update startup: ${result.error ?? 'unknown error'}`);
+        return;
+      }
+      showToast(val ? 'Studio will launch at startup' : 'Removed from startup');
+    });
+  };
+
+  const handleSetAllowAnalytics = (val: boolean) => {
+    setAllowAnalytics(val);
+    showToast(
+      val ? 'Local crash diagnostics enabled (never uploaded)' : 'Crash diagnostics disabled'
+    );
+  };
+
+  const handleSetAllowDeviceNotifications = (val: boolean) => {
+    setAllowDeviceNotifications(val);
+    showToast(val ? 'Device notifications enabled' : 'Device notifications muted');
+  };
+
   const {
     hardwareConnected,
     hardwareSyncStatus,
@@ -147,9 +251,12 @@ export default function App() {
     showToast,
     setDialAngle,
     onNavigateToHardware: () => setActiveNav('Hardware'),
+    allowDeviceNotifications,
+    allowTerminalSmartActions,
   });
 
   const handleUpdateKeyAssignment = (slot: KeySlotId, newAssignment: KeyAssignment) => {
+    checkpoint(`key:${slot}`);
     const updatedLayers = [...currentProfile.layers];
     updatedLayers[activeLayerIndex] = {
       ...withoutPresetTag(updatedLayers[activeLayerIndex]),
@@ -168,6 +275,7 @@ export default function App() {
     subAction: EncoderSubActionId,
     newSubBinding: KeyAssignment
   ) => {
+    checkpoint(`encoder:${subAction}`);
     const updatedLayers = [...currentProfile.layers];
     const prevEncoder = updatedLayers[activeLayerIndex].encoder || {
       type: 'macro',
@@ -195,6 +303,7 @@ export default function App() {
   };
 
   const handleAddLayer = () => {
+    checkpoint();
     const nextLayers = [
       ...currentProfile.layers,
       JSON.parse(JSON.stringify(BLANK_LAYER)),
@@ -212,6 +321,7 @@ export default function App() {
       showToast('Cannot delete the last remaining layer');
       return;
     }
+    checkpoint();
     const nextLayers = currentProfile.layers.filter(
       (_, idx) => idx !== indexToDelete
     );
@@ -224,6 +334,7 @@ export default function App() {
   };
 
   const handleRenameLayer = (name: string) => {
+    checkpoint('layer-name');
     setLayerNames((prev) => ({
       ...prev,
       [currentLayerNameKey]: name,
@@ -231,6 +342,7 @@ export default function App() {
   };
 
   const handleApplyPreset = (presetId: string) => {
+    checkpoint();
     const newLayer = buildPresetLayer(presetId);
     const updatedLayers = [...currentProfile.layers];
     updatedLayers[activeLayerIndex] = newLayer;
@@ -246,6 +358,7 @@ export default function App() {
   };
 
   const handleResetFactoryDefaults = () => {
+    checkpoint();
     clearStudioStorage();
     setProfiles(JSON.parse(JSON.stringify(INITIAL_PROFILES)));
     setLayerNames(DEFAULT_LAYER_NAMES);
@@ -270,6 +383,10 @@ export default function App() {
         onDisconnectHardware={handleDisconnectHardware}
         hardwareSyncStatus={hardwareSyncStatus}
         onNavigateToHardware={() => setActiveNav('Hardware')}
+        canUndo={history.canUndo}
+        canRedo={history.canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
       />
 
       {/* Main View Router */}
@@ -347,13 +464,13 @@ export default function App() {
         {activeNav === 'Settings' && (
           <SettingsView
             allowAnalytics={allowAnalytics}
-            setAllowAnalytics={setAllowAnalytics}
+            setAllowAnalytics={handleSetAllowAnalytics}
             launchAtStartup={launchAtStartup}
-            setLaunchAtStartup={setLaunchAtStartup}
+            setLaunchAtStartup={handleSetLaunchAtStartup}
             allowTerminalSmartActions={allowTerminalSmartActions}
             setAllowTerminalSmartActions={setAllowTerminalSmartActions}
             allowDeviceNotifications={allowDeviceNotifications}
-            setAllowDeviceNotifications={setAllowDeviceNotifications}
+            setAllowDeviceNotifications={handleSetAllowDeviceNotifications}
             onResetFactoryDefaults={handleResetFactoryDefaults}
           />
         )}

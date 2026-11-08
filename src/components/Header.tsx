@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Sliders, Cpu, Sparkles } from 'lucide-react';
+import { Layers, Sliders, Cpu, Sparkles, Undo2, Redo2 } from 'lucide-react';
 
 export interface HeaderProps {
   activeNav: string;
@@ -9,6 +9,10 @@ export interface HeaderProps {
   onDisconnectHardware: () => void;
   hardwareSyncStatus: 'idle' | 'syncing' | 'synced' | 'error';
   onNavigateToHardware: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,6 +23,10 @@ export const Header: React.FC<HeaderProps> = ({
   onDisconnectHardware,
   hardwareSyncStatus,
   onNavigateToHardware,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }) => {
   return (
     <header className="h-16 border-b border-white/5 bg-[#090c14]/90 backdrop-blur-xl px-6 flex items-center justify-between select-none z-30 sticky top-0">
@@ -35,6 +43,29 @@ export const Header: React.FC<HeaderProps> = ({
               GRID MACRO 1
             </span>
           </div>
+        </div>
+
+        <div className="flex items-center gap-1" role="group" aria-label="Edit history">
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo last change"
+            className="p-1.5 rounded-lg border border-white/5 bg-white/[0.03] text-neutral-400 hover:text-white hover:bg-white/[0.08] disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white/[0.03] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <Undo2 className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+            aria-label="Redo change"
+            className="p-1.5 rounded-lg border border-white/5 bg-white/[0.03] text-neutral-400 hover:text-white hover:bg-white/[0.08] disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white/[0.03] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <Redo2 className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
         </div>
 
         <nav

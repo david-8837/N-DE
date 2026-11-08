@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sliders, Shield, Bell, RefreshCw } from 'lucide-react';
+import { Sliders, Shield, Bell, RefreshCw, Monitor, Globe } from 'lucide-react';
 import { SettingsSwitch } from '../utils/helpers';
+import { isDesktopApp } from '../utils/desktop';
 
 export interface SettingsViewProps {
   allowAnalytics: boolean;
@@ -25,6 +26,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   setAllowDeviceNotifications,
   onResetFactoryDefaults,
 }) => {
+  const isDesktop = isDesktopApp();
+
   return (
     <div className="flex-1 flex flex-col p-8 max-w-4xl mx-auto w-full select-none">
       <div className="mb-8">
@@ -49,13 +52,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               checked={allowTerminalSmartActions}
               onChange={setAllowTerminalSmartActions}
               title="Allow Local Terminal & Shell Execution"
-              description="Permit Smart Actions to run developer commands (git, npm, docker) via sanitized background execution."
+              description="Let Smart Actions run allow-listed developer commands (git, npm, node, docker…). Enforced in the desktop app; blocked by default."
             />
             <SettingsSwitch
               checked={allowAnalytics}
               onChange={setAllowAnalytics}
-              title="Anonymous Telemetry & Crash Reporting"
-              description="Help improve NØDE firmware stability by sharing anonymous diagnostics."
+              title="Local Crash Diagnostics"
+              description="Write anonymous crash details to diagnostics.log on this device. Nothing is uploaded."
             />
           </div>
         </div>
@@ -71,15 +74,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               checked={launchAtStartup}
               onChange={setLaunchAtStartup}
               title="Launch at Windows Startup"
-              description="Start NØDE Grid Macro 1 background daemon in system tray on boot."
+              description="Start NØDE Studio when you sign in. Desktop app only — saved for later in the browser."
             />
             <SettingsSwitch
               checked={allowDeviceNotifications}
               onChange={setAllowDeviceNotifications}
               title="Hardware Connection Notifications"
-              description="Show OS desktop toast notifications when RP2040-Zero is connected or disconnected."
+              description="Show an OS notification when the RP2040-Zero connects or disconnects."
             />
           </div>
+        </div>
+
+        {/* Desktop integration status */}
+        <div className="flex items-start gap-2.5 text-xs text-neutral-400 bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3">
+          {isDesktop ? (
+            <Monitor className="w-4 h-4 text-emerald-400 flex-shrink-0" aria-hidden="true" />
+          ) : (
+            <Globe className="w-4 h-4 text-amber-400 flex-shrink-0" aria-hidden="true" />
+          )}
+          <p>
+            {isDesktop
+              ? 'Desktop integration active: startup, notifications and execution policies are enforced by the app.'
+              : 'Running in a browser: startup items, OS notifications and shell execution are unavailable. Keymaps, ratings and preferences still save to this device.'}
+          </p>
         </div>
 
         {/* Version and Diagnostics */}
