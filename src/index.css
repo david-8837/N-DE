@@ -8,13 +8,35 @@
 @layer base {
   body {
     font-family: var(--font-sans);
-    background-color: #efefef;
-    color: #222222;
+    background-color: #07090e;
+    color: #ffffff;
     margin: 0;
     padding: 0;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
-    user-select: none;
+  }
+
+  /* Keyboard users get a visible ring everywhere, even on custom controls. */
+  :focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.35);
+    color: #ffffff;
+  }
+}
+
+/* Respect the OS reduced-motion setting instead of animating regardless. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -23,11 +45,11 @@
 }
 
 .list-accordion-scroll::-webkit-scrollbar-track {
-  background: #e2e2e2;
+  background: #12151f;
   border-radius: 9999px;
 }
 
 .list-accordion-scroll::-webkit-scrollbar-thumb {
-  background: #484848;
+  background: #3f4759;
   border-radius: 9999px;
 }

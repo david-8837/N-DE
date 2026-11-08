@@ -1,16 +1,5 @@
 import { LayerKeymap, PresetBreakdown, PresetItem, ProfileData } from '../types';
 
-export const PRESET_THEME_COLORS: Record<string, string> = {
-  framer: '#3b82f6',
-  photoshop: '#38bdf8',
-  premiere: '#818cf8',
-  vscode: '#60a5fa',
-  blender: '#f97316',
-  figma: '#a855f7',
-  ableton: '#10b981',
-  discord: '#6366f1',
-};
-
 export const PRESET_LIBRARY: PresetItem[] = [
   {
     id: 'framer',
@@ -158,6 +147,7 @@ export function buildPresetLayer(presetId: string): LayerKeymap {
   const breakdown = p ? p.breakdown : {};
 
   const layer: LayerKeymap = {
+    presetId,
     r1c1: { type: 'preset', label: breakdown['r1c1'] || 'Key 1', customIcon: getToolIconId(breakdown['r1c1'] || ''), themeColor: color },
     r1c2: { type: 'preset', label: breakdown['r1c2'] || 'Key 2', customIcon: getToolIconId(breakdown['r1c2'] || ''), themeColor: color },
     r1c3: { type: 'preset', label: breakdown['r1c3'] || 'Key 3', customIcon: getToolIconId(breakdown['r1c3'] || ''), themeColor: color },

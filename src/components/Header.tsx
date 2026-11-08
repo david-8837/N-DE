@@ -37,7 +37,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        <nav className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/5">
+        <nav
+          aria-label="Primary"
+          className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/5"
+        >
           {[
             { id: 'Keymap', label: 'Keymap Studio', icon: Layers },
             { id: 'Presets', label: 'Presets Library', icon: Sparkles },
@@ -49,14 +52,16 @@ export const Header: React.FC<HeaderProps> = ({
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveNav(tab.id)}
+                aria-current={isActive ? 'page' : undefined}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-semibold'
                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04]'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
                 {tab.label}
               </button>
             );
@@ -66,7 +71,13 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={hardwareConnected ? onDisconnectHardware : onConnectHardware}
+          aria-label={
+            hardwareConnected
+              ? 'Disconnect RP2040 device'
+              : 'Connect RP2040 device over Web Serial'
+          }
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all ${
             hardwareConnected
               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
@@ -82,11 +93,13 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={onNavigateToHardware}
-          className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-neutral-400 hover:text-white transition-all text-xs"
+          className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-neutral-400 hover:text-white transition-all text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           title="Hardware Manager & Pinout"
+          aria-label="Open hardware manager and pinout"
         >
-          <Cpu className="w-4 h-4" />
+          <Cpu className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </header>

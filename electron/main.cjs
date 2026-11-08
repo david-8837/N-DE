@@ -9,6 +9,55 @@ let psWorker = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+// Only our own renderer (dev server or packaged file:// bundle) may call IPC.
+function isTrustedSender(event) {
+  try {
+    const frameUrl = event.senderFrame && event.senderFrame.url;
+    const url = frameUrl || (event.sender && event.sender.getURL()) || '';
+    if (url.startsWith('file://')) return true;
+    if (url.startsWith('http://localhost:3000') || url.startsWith('http://127.0.0.1:3000')) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// Binaries Smart Actions are allowed to run without a shell.
+const SAFE_COMMAND_BINARIES = new Set([
+  'git',
+  'npm',
+  'npx',
+  'node',
+  'yarn',
+  'pnpm',
+  'docker',
+  'python',
+  'python3',
+  'code',
+  'notepad',
+  'calc',
+]);
+
+const SAFE_COMMAND_PATTERN = /^[\w.\-:@/\\ ]+$/;
+
+function isBootloaderVolume(dirPath) {
+  if (typeof dirPath !== 'string' || dirPath.length === 0) return false;
+  try {
+    const infoPath = path.join(dirPath, 'INFO_UF2.TXT');
+    if (!fs.existsSync(infoPath)) return false;
+    const content = fs.readFileSync(infoPath, 'utf8');
+    return (
+      content.includes('RP2040') ||
+      content.includes('Raspberry Pi') ||
+      content.includes('RPI-RP2')
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Safe Virtual Keycode Map for Native Keystroke Injection
 const VK_MAP = {
   win: 0x5b,
@@ -203,6 +252,12 @@ function createWindow() {
     return false;
   });
 
+  // Explicit permission prompts: only the device APIs this studio needs.
+  ses.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'serial' || permission === 'hid') return callback(true);
+    return callback(false);
+  });
+
   // Automatically select connected RP2040-Zero device when requested by web app
   ses.on('select-serial-port', (event, portList, webContents, callback) => {
     event.preventDefault();
@@ -247,6 +302,22 @@ function createWindow() {
     }
   });
 
+  // Never let the renderer navigate away from the studio bundle.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const isInternal =
+      url.startsWith('file://') ||
+      url.startsWith('http://localhost:3000') ||
+      url.startsWith('http://127.0.0.1:3000');
+    if (isInternal) return;
+    event.preventDefault();
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        shell.openExternal(parsed.href);
+      }
+    } catch {}
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     try {
       const parsed = new URL(url);
@@ -263,11 +334,13 @@ function createWindow() {
 }
 
 // IPC Handlers for Native Windows Control
-ipcMain.handle('window-minimize', () => {
+ipcMain.handle('window-minimize', (event) => {
+  if (!isTrustedSender(event)) return false;
   if (mainWindow) mainWindow.minimize();
 });
 
-ipcMain.handle('window-maximize', () => {
+ipcMain.handle('window-maximize', (event) => {
+  if (!isTrustedSender(event)) return false;
   if (mainWindow) {
     if (mainWindow.isMaximized()) {
       mainWindow.unmaximize();
@@ -277,20 +350,24 @@ ipcMain.handle('window-maximize', () => {
   }
 });
 
-ipcMain.handle('window-close', () => {
+ipcMain.handle('window-close', (event) => {
+  if (!isTrustedSender(event)) return false;
   if (mainWindow) mainWindow.close();
 });
 
-ipcMain.handle('window-is-maximized', () => {
+ipcMain.handle('window-is-maximized', (event) => {
+  if (!isTrustedSender(event)) return false;
   return mainWindow ? mainWindow.isMaximized() : false;
 });
 
-ipcMain.handle('get-app-version', () => {
+ipcMain.handle('get-app-version', (event) => {
+  if (!isTrustedSender(event)) return null;
   return app.getVersion();
 });
 
 // RP2040 Bootloader Volume Detection (RPI-RP2)
-ipcMain.handle('detect-rp2040-bootloader', async () => {
+ipcMain.handle('detect-rp2040-bootloader', async (event) => {
+  if (!isTrustedSender(event)) return { detected: false };
   if (process.platform === 'win32') {
     const letters = 'DEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     for (const letter of letters) {
@@ -336,7 +413,11 @@ ipcMain.handle('detect-rp2040-bootloader', async () => {
 // 1-Click Drag-and-Drop UF2 Firmware Flasher
 ipcMain.handle('flash-uf2-firmware', async (event, payload = {}) => {
   try {
+    if (!isTrustedSender(event)) {
+      return { success: false, error: 'Blocked: untrusted IPC sender.' };
+    }
     const { drivePath, firmwareType, customUf2Base64 } = payload;
+    const safeFirmwareType = String(firmwareType || 'fw').replace(/[^a-z0-9_-]/gi, '').slice(0, 20) || 'fw';
     let targetDrive = drivePath;
     if (!targetDrive && process.platform === 'win32') {
       const letters = 'DEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -349,18 +430,25 @@ ipcMain.handle('flash-uf2-firmware', async (event, payload = {}) => {
       }
     }
 
-    if (!targetDrive || !fs.existsSync(targetDrive)) {
+    if (!targetDrive || !isBootloaderVolume(targetDrive)) {
       return {
         success: false,
-        error: 'Target RP2040 bootloader drive (RPI-RP2) was not found or is disconnected.',
+        error:
+          'Target is not a mounted RP2040 bootloader volume (no valid INFO_UF2.TXT found).',
       };
     }
 
-    const destFileName = `grid_macro_1_${firmwareType || 'fw'}.uf2`;
+    const destFileName = `grid_macro_1_${safeFirmwareType}.uf2`;
     const destPath = path.join(targetDrive, destFileName);
 
     if (customUf2Base64) {
+      if (typeof customUf2Base64 !== 'string' || customUf2Base64.length > 12 * 1024 * 1024) {
+        return { success: false, error: 'Firmware payload is missing or too large (max 12 MB).' };
+      }
       const buffer = Buffer.from(customUf2Base64, 'base64');
+      if (buffer.length === 0 || buffer.length > 8 * 1024 * 1024) {
+        return { success: false, error: 'Firmware payload could not be decoded.' };
+      }
       fs.writeFileSync(destPath, buffer);
       return {
         success: true,
@@ -384,9 +472,10 @@ ipcMain.handle('flash-uf2-firmware', async (event, payload = {}) => {
       }
     }
 
+    // Never report a flash that did not happen: there is no bundled .uf2 here.
     return {
-      success: true,
-      message: `RP2040 Bootloader verified at ${targetDrive}. Ready to flash ${destFileName}.`,
+      success: false,
+      error: `RP2040 bootloader is mounted at ${targetDrive}, but no bundled ${safeFirmwareType} .uf2 image was found. Build it from qmk_firmware/grid_macro_1 or supply customUf2Base64.`,
     };
   } catch (err) {
     return { success: false, error: err.message };
@@ -395,6 +484,9 @@ ipcMain.handle('flash-uf2-firmware', async (event, payload = {}) => {
 
 // Sanitized & Safe Smart Action Execution (Open URL, Launch App, Safe Commands, Inject Keystrokes)
 ipcMain.handle('execute-smart-action', async (event, payload) => {
+  if (!isTrustedSender(event)) {
+    return { success: false, error: 'Blocked: untrusted IPC sender.' };
+  }
   if (!payload || typeof payload !== 'object') {
     return { success: false, error: 'Invalid payload' };
   }
@@ -417,11 +509,6 @@ ipcMain.handle('execute-smart-action', async (event, payload) => {
       return { success: false, error: 'Unsupported URL protocol' };
     } else if (type === 'App') {
       const appTarget = value.trim();
-      // Safe execution using shell.openPath or direct sanitized execFile
-      if (path.isAbsolute(appTarget)) {
-        await shell.openPath(appTarget);
-        return { success: true, message: `Opened Path: ${appTarget}` };
-      }
       // Common Windows app aliases allowlist
       const SAFE_WIN_APPS = {
         calc: 'calc.exe',
@@ -435,7 +522,20 @@ ipcMain.handle('execute-smart-action', async (event, payload) => {
         code: 'code.cmd',
       };
       const cleanKey = appTarget.toLowerCase().replace(/\.exe$/i, '');
-      const binaryName = SAFE_WIN_APPS[cleanKey] || appTarget;
+      const binaryName = SAFE_WIN_APPS[cleanKey];
+
+      if (!binaryName) {
+        // Unknown target: only allow an existing absolute path the user can see.
+        if (!path.isAbsolute(appTarget) || !fs.existsSync(appTarget)) {
+          return {
+            success: false,
+            error:
+              'Unknown app. Use a supported alias (calc, notepad, explorer, code…) or an absolute path to an existing program.',
+          };
+        }
+        await shell.openPath(appTarget);
+        return { success: true, message: `Opened Path: ${appTarget}` };
+      }
 
       if (process.platform === 'win32') {
         execFile('cmd.exe', ['/c', 'start', '', binaryName], { windowsHide: true }, (err) => {
@@ -459,9 +559,21 @@ ipcMain.handle('execute-smart-action', async (event, payload) => {
         };
       }
       // Execute command safely as an isolated argument
+      if (!SAFE_COMMAND_PATTERN.test(rawCmd)) {
+        return {
+          success: false,
+          error: 'Security Warning: command contains unsupported characters.',
+        };
+      }
       const parts = rawCmd.split(/\s+/).filter(Boolean);
       if (parts.length > 0) {
-        const bin = parts[0];
+        const bin = parts[0].toLowerCase().replace(/\.(exe|cmd|bat)$/, '');
+        if (!SAFE_COMMAND_BINARIES.has(bin)) {
+          return {
+            success: false,
+            error: `Blocked: "${bin}" is not an allow-listed command.`,
+          };
+        }
         const args = parts.slice(1);
         execFile(bin, args, { windowsHide: true, timeout: 5000 }, (err) => {
           if (err) console.error('Cmd execution error:', err);

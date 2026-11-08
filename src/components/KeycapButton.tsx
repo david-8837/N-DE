@@ -14,6 +14,21 @@ export interface KeycapButtonProps {
   onDrop?: (e: React.DragEvent) => void;
 }
 
+function slotLabel(slot: KeySlotId): string {
+  if (slot === 'encoder') return 'Rotary dial';
+  return `Row ${slot[1]} column ${slot[3]}`;
+}
+
+function assignmentLabel(assignment: KeyAssignment): string {
+  if (assignment.label) return assignment.label;
+  if (assignment.code) return assignment.code.replace(/^KC_/, '').replace(/_/g, ' ');
+  if (assignment.type === 'none') return 'unassigned';
+  if (assignment.type === 'layer' && assignment.targetLayer !== undefined) {
+    return `Layer ${assignment.targetLayer + 1}`;
+  }
+  return assignment.type;
+}
+
 export const KeycapButton: React.FC<KeycapButtonProps> = ({
   slot,
   assignment,
@@ -27,15 +42,19 @@ export const KeycapButton: React.FC<KeycapButtonProps> = ({
 }) => {
   const hasColor = assignment.type === 'preset' && assignment.themeColor;
   const bgStyle = hasColor ? { backgroundColor: assignment.themeColor } : {};
+  const label = `${slotLabel(slot)}: ${assignmentLabel(assignment)}`;
 
   return (
-    <div
+    <button
+      type="button"
       draggable={!isSimulating}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onClick={onClick}
-      className={`relative w-20 h-20 rounded-2xl p-1.5 flex flex-col items-center justify-center cursor-pointer transition-all duration-150 select-none group ${
+      aria-label={label}
+      aria-pressed={!!isSelected}
+      className={`relative w-20 h-20 rounded-2xl p-1.5 flex flex-col items-center justify-center cursor-pointer transition-all duration-150 select-none group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0e121b] ${
         isPressed ? 'scale-95 translate-y-1' : 'hover:-translate-y-0.5'
       } ${
         isSelected
@@ -43,7 +62,7 @@ export const KeycapButton: React.FC<KeycapButtonProps> = ({
           : 'hover:ring-1 hover:ring-blue-400/50'
       }`}
     >
-      <div
+      <span
         className={`w-full h-full rounded-xl flex flex-col items-center justify-center border transition-all ${
           hasColor
             ? 'border-white/20 text-white shadow-lg'
@@ -52,7 +71,7 @@ export const KeycapButton: React.FC<KeycapButtonProps> = ({
         style={bgStyle}
       >
         <IsometricKeyIcon assignment={assignment} isSimulating={isSimulating} />
-      </div>
-    </div>
+      </span>
+    </button>
   );
 };

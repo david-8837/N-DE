@@ -13,6 +13,7 @@ export interface KnobControlProps {
 }
 
 export const KnobControl: React.FC<KnobControlProps> = ({
+  assignment,
   dialAngle,
   isSelected,
   onClick,
@@ -21,9 +22,12 @@ export const KnobControl: React.FC<KnobControlProps> = ({
   onPress,
 }) => {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className={`relative w-20 h-20 rounded-full cursor-pointer flex items-center justify-center transition-all group select-none ${
+      aria-label={`Rotary dial: ${assignment.label || assignment.code || 'unassigned'}`}
+      aria-pressed={!!isSelected}
+      className={`relative w-20 h-20 rounded-full cursor-pointer flex items-center justify-center transition-all group select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0e121b] ${
         isSelected
           ? 'ring-2 ring-blue-500 ring-offset-4 ring-offset-[#0e121b]'
           : 'hover:ring-1 hover:ring-white/20'
@@ -39,6 +43,6 @@ export const KnobControl: React.FC<KnobControlProps> = ({
           <div className="w-3 h-3 rounded-full bg-blue-600/30" />
         </div>
       </div>
-    </div>
+    </button>
   );
 };

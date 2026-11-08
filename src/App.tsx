@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   KeySlotId,
+  KeyAssignment,
   LayerKeymap,
   PresetItem,
   ProfileData,
@@ -21,29 +22,90 @@ import { PresetPreviewView } from './views/PresetPreviewView';
 import { SettingsView } from './views/SettingsView';
 import { HardwareManagerView } from './views/HardwareManagerView';
 import { useHardwareState } from './hooks/useHardwareState';
+import { usePersistentState } from './hooks/usePersistentState';
+import { usePresetRatings } from './hooks/usePresetRatings';
+import {
+  DEFAULT_SETTINGS,
+  PersistedSettings,
+  STORAGE_KEYS,
+  clearStudioStorage,
+  isIndex,
+  isProfileList,
+  isSettings,
+  isStringRecord,
+} from './utils/storage';
+
+const DEFAULT_LAYER_NAMES: Record<string, string> = {
+  'default-0': 'Base Layer',
+  'default-1': 'Media & Volume',
+  'default-2': 'Numpad & Nav',
+  'default-3': 'Function & Macro',
+};
+
+/** Editing a key means the layer is no longer a pristine copy of a preset. */
+function withoutPresetTag(layer: LayerKeymap): LayerKeymap {
+  if (!layer.presetId) return layer;
+  const { presetId, ...slots } = layer;
+  return slots as LayerKeymap;
+}
 
 export default function App() {
   const [activeNav, setActiveNav] = useState('Keymap');
-  const [profiles, setProfiles] = useState<ProfileData[]>(INITIAL_PROFILES);
-  const [activeProfileIndex, setActiveProfileIndex] = useState(0);
-  const [activeLayerIndex, setActiveLayerIndex] = useState(0);
-  const [layerNames, setLayerNames] = useState<Record<string, string>>({
-    'default-0': 'Base Layer',
-    'default-1': 'Media & Volume',
-    'default-2': 'Numpad & Nav',
-    'default-3': 'Function & Macro',
-  });
+  const [profiles, setProfiles] = usePersistentState<ProfileData[]>(
+    STORAGE_KEYS.profiles,
+    INITIAL_PROFILES,
+    isProfileList
+  );
+  const [activeProfileIndex, setActiveProfileIndex] = usePersistentState<number>(
+    STORAGE_KEYS.activeProfile,
+    0,
+    isIndex
+  );
+  const [activeLayerIndex, setActiveLayerIndex] = usePersistentState<number>(
+    STORAGE_KEYS.activeLayer,
+    0,
+    isIndex
+  );
+  const [layerNames, setLayerNames] = usePersistentState<Record<string, string>>(
+    STORAGE_KEYS.layerNames,
+    DEFAULT_LAYER_NAMES,
+    isStringRecord
+  );
   const [isSimulating, setIsSimulating] = useState(false);
   const [activeSimulatedKey, setActiveSimulatedKey] = useState<string | null>(null);
   const [dialAngle, setDialAngle] = useState(45);
   const [previewPreset, setPreviewPreset] = useState<PresetItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Settings State
-  const [allowAnalytics, setAllowAnalytics] = useState(false);
-  const [launchAtStartup, setLaunchAtStartup] = useState(false);
-  const [allowTerminalSmartActions, setAllowTerminalSmartActions] = useState(true);
-  const [allowDeviceNotifications, setAllowDeviceNotifications] = useState(true);
+  // Settings State (persisted)
+  const [settings, setSettings] = usePersistentState<PersistedSettings>(
+    STORAGE_KEYS.settings,
+    DEFAULT_SETTINGS,
+    isSettings
+  );
+  const { allowAnalytics, launchAtStartup, allowTerminalSmartActions, allowDeviceNotifications } =
+    settings;
+
+  const setAllowAnalytics = (val: boolean) =>
+    setSettings((prev) => ({ ...prev, allowAnalytics: val }));
+  const setLaunchAtStartup = (val: boolean) =>
+    setSettings((prev) => ({ ...prev, launchAtStartup: val }));
+  const setAllowTerminalSmartActions = (val: boolean) =>
+    setSettings((prev) => ({ ...prev, allowTerminalSmartActions: val }));
+  const setAllowDeviceNotifications = (val: boolean) =>
+    setSettings((prev) => ({ ...prev, allowDeviceNotifications: val }));
+
+  const { ratings, ratePreset, clearPresetRating, clearAllRatings } = usePresetRatings();
+
+  // Keep persisted selections valid after a profile/layer edit or reset.
+  useEffect(() => {
+    if (activeProfileIndex > profiles.length - 1) setActiveProfileIndex(0);
+  }, [activeProfileIndex, profiles.length, setActiveProfileIndex]);
+
+  useEffect(() => {
+    const layerCount = profiles[activeProfileIndex]?.layers?.length ?? 1;
+    if (activeLayerIndex > layerCount - 1) setActiveLayerIndex(0);
+  }, [activeLayerIndex, profiles, activeProfileIndex, setActiveLayerIndex]);
 
   const currentProfile = profiles[activeProfileIndex] || profiles[0];
   const currentLayer =
@@ -51,12 +113,23 @@ export default function App() {
   const currentLayerNameKey = `${currentProfile.id}-${activeLayerIndex}`;
   const currentLayerName = layerNames[currentLayerNameKey] ?? '';
 
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showToast = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastMessage(msg);
-    setTimeout(() => {
+    toastTimer.current = setTimeout(() => {
       setToastMessage((current) => (current === msg ? null : current));
+      toastTimer.current = null;
     }, 2200);
   };
+
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    []
+  );
 
   const {
     hardwareConnected,
@@ -76,10 +149,10 @@ export default function App() {
     onNavigateToHardware: () => setActiveNav('Hardware'),
   });
 
-  const handleUpdateKeyAssignment = (slot: KeySlotId, newAssignment: any) => {
+  const handleUpdateKeyAssignment = (slot: KeySlotId, newAssignment: KeyAssignment) => {
     const updatedLayers = [...currentProfile.layers];
     updatedLayers[activeLayerIndex] = {
-      ...updatedLayers[activeLayerIndex],
+      ...withoutPresetTag(updatedLayers[activeLayerIndex]),
       [slot]: newAssignment,
     };
 
@@ -93,7 +166,7 @@ export default function App() {
 
   const handleUpdateEncoderSubAction = (
     subAction: EncoderSubActionId,
-    newSubBinding: any
+    newSubBinding: KeyAssignment
   ) => {
     const updatedLayers = [...currentProfile.layers];
     const prevEncoder = updatedLayers[activeLayerIndex].encoder || {
@@ -102,7 +175,7 @@ export default function App() {
     };
 
     updatedLayers[activeLayerIndex] = {
-      ...updatedLayers[activeLayerIndex],
+      ...withoutPresetTag(updatedLayers[activeLayerIndex]),
       encoder: {
         ...prevEncoder,
         type: prevEncoder.type || 'macro',
@@ -173,10 +246,14 @@ export default function App() {
   };
 
   const handleResetFactoryDefaults = () => {
+    clearStudioStorage();
     setProfiles(JSON.parse(JSON.stringify(INITIAL_PROFILES)));
+    setLayerNames(DEFAULT_LAYER_NAMES);
+    setSettings(DEFAULT_SETTINGS);
+    clearAllRatings();
     setActiveProfileIndex(0);
     setActiveLayerIndex(0);
-    showToast('Reset all profiles and layers to factory defaults');
+    showToast('Reset profiles, presets and settings to factory defaults');
   };
 
   return (
@@ -233,6 +310,9 @@ export default function App() {
             currentProfile={currentProfile}
             onPreviewPreset={(p) => setPreviewPreset(p)}
             onApplyPreset={handleApplyPreset}
+            ratings={ratings}
+            onRatePreset={ratePreset}
+            onClearPresetRating={clearPresetRating}
           />
         )}
 
@@ -242,6 +322,9 @@ export default function App() {
             onBack={() => setPreviewPreset(null)}
             onApply={() => handleApplyPreset(previewPreset.id)}
             isApplied={isPresetAppliedInProfile(currentProfile, previewPreset.id)}
+            rating={ratings[previewPreset.id] ?? null}
+            onRate={(score) => ratePreset(previewPreset.id, score)}
+            onClearRating={() => clearPresetRating(previewPreset.id)}
           />
         )}
 
@@ -280,6 +363,8 @@ export default function App() {
       <AnimatePresence>
         {toastMessage && (
           <motion.div
+            role="status"
+            aria-live="polite"
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}

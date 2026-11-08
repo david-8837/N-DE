@@ -50,7 +50,7 @@ export interface KeymapStudioViewProps {
   onRotateCCW: () => void;
   onDialPress: () => void;
   onUpdateKeyAssignment: (slot: KeySlotId, assignment: KeyAssignment) => void;
-  onUpdateEncoderSubAction: (subAction: EncoderSubActionId, binding: any) => void;
+  onUpdateEncoderSubAction: (subAction: EncoderSubActionId, binding: KeyAssignment) => void;
   onFlashKeymap: () => void;
   hardwareConnected: boolean;
   hardwareSyncStatus: 'idle' | 'syncing' | 'synced' | 'error';

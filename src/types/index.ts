@@ -85,7 +85,14 @@ export interface KeyAssignment {
   actionSteps?: ActionAdvanceStep[];
 }
 
-export type LayerKeymap = Record<KeySlotId, KeyAssignment>;
+/**
+ * A layer is a slot -> assignment map plus optional bookkeeping.
+ * `presetId` records which community preset last populated the layer so the UI
+ * can tell "this preset is applied" apart from "some other preset is applied".
+ */
+export type LayerKeymap = Record<KeySlotId, KeyAssignment> & {
+  presetId?: string;
+};
 
 export interface ProfileData {
   id: string;

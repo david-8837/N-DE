@@ -41,11 +41,26 @@ export function extractMultiGestures(assignment?: KeyAssignment): Partial<Record
   return assignment?.multiGestureActions || {};
 }
 
-export function isPresetAppliedInProfile(profile: ProfileData, presetId: string): boolean {
-  if (!profile || !profile.layers) return false;
-  return profile.layers.some((layer) => {
-    return Object.values(layer).some((key) => key?.type === 'preset' && key?.themeColor);
-  });
+/**
+ * A preset counts as applied only when a layer was populated from that exact
+ * preset. Earlier versions returned true whenever *any* preset key existed,
+ * which made every preset in the library read "Applied" after the first one.
+ */
+export function isPresetAppliedInProfile(
+  profile: ProfileData | null | undefined,
+  presetId: string
+): boolean {
+  if (!profile || !Array.isArray(profile.layers) || !presetId) return false;
+  return profile.layers.some((layer) => layer?.presetId === presetId);
+}
+
+/** Index of the layer currently holding the preset, or -1. */
+export function findPresetLayerIndex(
+  profile: ProfileData | null | undefined,
+  presetId: string
+): number {
+  if (!profile || !Array.isArray(profile.layers) || !presetId) return -1;
+  return profile.layers.findIndex((layer) => layer?.presetId === presetId);
 }
 
 export const ArrowKeyGlyph: React.FC<{ dir: 'up' | 'down' | 'left' | 'right' }> = ({ dir }) => {
@@ -99,12 +114,15 @@ export const SettingsSwitch: React.FC<{
     </div>
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={title}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
         checked ? 'bg-blue-600' : 'bg-neutral-700'
-      }`}
+      } focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0e17]`}
     >
-      <span
+      <span aria-hidden="true"
         className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
           checked ? 'translate-x-5' : 'translate-x-0'
         }`}
