@@ -11,6 +11,7 @@ import {
   Zap,
 } from '../icons';
 import { KeySlotId, LayerKeymap } from '../types';
+import { errorMessage } from '../utils/errors';
 import {
   RP2040_PINOUT_GUIDE,
   RP2040_CODE_PY,
@@ -81,8 +82,8 @@ export const HardwareManagerView: React.FC<HardwareManagerViewProps> = ({
           });
         }
       }
-    } catch (err: any) {
-      console.warn('Bootloader check:', err);
+    } catch (err) {
+      console.warn('Bootloader check:', errorMessage(err));
     } finally {
       setIsScanningBootloader(false);
     }
@@ -123,8 +124,8 @@ export const HardwareManagerView: React.FC<HardwareManagerViewProps> = ({
           text: `Downloaded grid_macro_1_${firmwareType}.uf2! Drag and drop it into your mounted RPI-RP2 drive.`,
         });
       }
-    } catch (err: any) {
-      setFlashMessage({ type: 'error', text: err.message || 'Flashing error occurred.' });
+    } catch (err) {
+      setFlashMessage({ type: 'error', text: errorMessage(err) || 'Flashing error occurred.' });
     } finally {
       setFlashingFirmware(null);
     }
@@ -190,7 +191,7 @@ export const HardwareManagerView: React.FC<HardwareManagerViewProps> = ({
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id as 'firmware' | 'pinout' | 'tester' | 'flash')}
             className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${
               activeTab === tab.id
                 ? 'bg-white/10 text-white shadow-sm'
@@ -213,7 +214,7 @@ export const HardwareManagerView: React.FC<HardwareManagerViewProps> = ({
             ].map((fw) => (
               <button
                 key={fw.id}
-                onClick={() => setFirmwareFramework(fw.id as any)}
+                onClick={() => setFirmwareFramework(fw.id as 'qmk' | 'circuitpy' | 'arduino')}
                 className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   firmwareFramework === fw.id
                     ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/30'

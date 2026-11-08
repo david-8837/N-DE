@@ -1,23 +1,19 @@
 import React, { useState } from 'react';
 import { Terminal, Type, Zap, Mouse, Check } from '../../icons';
-import { SmartActionSubTab } from '../../types';
+import { MouseActionId, SmartActionPayload, SmartActionSubTab } from '../../types';
 
 export interface SmartActionEditorProps {
-  initialData?: {
-    type: 'text' | 'terminal' | 'hotkey' | 'mouse';
-    textPayload?: string;
-    terminalCmd?: string;
-    hotkeyCombo?: string[];
-    mouseAction?: 'left_click' | 'right_click' | 'middle_click' | 'double_click' | 'scroll_up' | 'scroll_down';
-  };
-  onSave?: (data: any) => void;
+  initialData?: SmartActionPayload;
+  onSave?: (data: SmartActionPayload) => void;
 }
 
 export function SmartActionEditor({ initialData, onSave }: SmartActionEditorProps) {
   const [subTab, setSubTab] = useState<SmartActionSubTab>(initialData?.type || 'text');
   const [textVal, setTextVal] = useState(initialData?.textPayload || '');
   const [cmdVal, setCmdVal] = useState(initialData?.terminalCmd || '');
-  const [mouseVal, setMouseVal] = useState(initialData?.mouseAction || 'left_click');
+  const [mouseVal, setMouseVal] = useState<MouseActionId>(
+    initialData?.mouseAction ?? 'left_click'
+  );
 
   const handleApply = () => {
     if (!onSave) return;
@@ -63,6 +59,7 @@ export function SmartActionEditor({ initialData, onSave }: SmartActionEditorProp
         <div className="space-y-3">
           <label className="text-xs font-mono text-neutral-400">Text to Type Automatically</label>
           <textarea
+            aria-label="Text to type"
             value={textVal}
             onChange={(e) => setTextVal(e.target.value)}
             placeholder="Enter words, snippet, or URL to type instantly..."
@@ -77,6 +74,7 @@ export function SmartActionEditor({ initialData, onSave }: SmartActionEditorProp
           <label className="text-xs font-mono text-neutral-400">Terminal Shell Command</label>
           <input
             type="text"
+            aria-label="Terminal command"
             value={cmdVal}
             onChange={(e) => setCmdVal(e.target.value)}
             placeholder="e.g. git status, npm run build, docker ps"
@@ -92,17 +90,17 @@ export function SmartActionEditor({ initialData, onSave }: SmartActionEditorProp
         <div className="space-y-3">
           <label className="text-xs font-mono text-neutral-400">Mouse Click Action</label>
           <div className="grid grid-cols-2 gap-2">
-            {[
+            {([
               { id: 'left_click', label: 'Left Click' },
               { id: 'right_click', label: 'Right Click' },
               { id: 'middle_click', label: 'Middle Click' },
               { id: 'double_click', label: 'Double Click' },
               { id: 'scroll_up', label: 'Scroll Up' },
               { id: 'scroll_down', label: 'Scroll Down' },
-            ].map((m) => (
+            ] as { id: MouseActionId; label: string }[]).map((m) => (
               <button
                 key={m.id}
-                onClick={() => setMouseVal(m.id as any)}
+                onClick={() => setMouseVal(m.id)}
                 className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
                   mouseVal === m.id
                     ? 'bg-blue-600/20 border-blue-500 text-blue-400'

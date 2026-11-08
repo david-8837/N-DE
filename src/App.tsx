@@ -409,6 +409,7 @@ export default function App() {
             onSelectLayer={setActiveLayerIndex}
             currentLayer={currentLayer}
             currentLayerName={currentLayerName}
+            layerNames={layerNames}
             onRenameLayer={handleRenameLayer}
             onAddLayer={handleAddLayer}
             onDeleteLayer={handleDeleteLayer}

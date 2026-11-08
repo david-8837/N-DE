@@ -22,6 +22,22 @@ export type MappingTabId =
 
 export type EncoderSubActionId = 'cw' | 'press' | 'ccw';
 
+export interface SmartActionPayload {
+  type: 'text' | 'terminal' | 'hotkey' | 'mouse';
+  textPayload?: string;
+  terminalCmd?: string;
+  hotkeyCombo?: string[];
+  mouseAction?: MouseActionId;
+}
+
+export type MouseActionId =
+  | 'left_click'
+  | 'right_click'
+  | 'middle_click'
+  | 'double_click'
+  | 'scroll_up'
+  | 'scroll_down';
+
 export interface ActionToken {
   id: string;
   type: 'key' | 'modifier' | 'delay' | 'text' | 'smart';
@@ -29,7 +45,7 @@ export interface ActionToken {
   code?: string;
   delayMs?: number;
   textPayload?: string;
-  smartPayload?: any;
+  smartPayload?: SmartActionPayload;
 }
 
 export interface ActionAdvanceStep {
@@ -51,13 +67,7 @@ export interface EncoderSubBinding {
   themeColor?: string;
   targetLayer?: number;
   tokens?: ActionToken[];
-  smartAction?: {
-    type: 'text' | 'terminal' | 'hotkey' | 'mouse';
-    textPayload?: string;
-    terminalCmd?: string;
-    hotkeyCombo?: string[];
-    mouseAction?: 'left_click' | 'right_click' | 'middle_click' | 'double_click' | 'scroll_up' | 'scroll_down';
-  };
+  smartAction?: SmartActionPayload;
 }
 
 export interface KeyAssignment {
@@ -74,13 +84,7 @@ export interface KeyAssignment {
     press?: EncoderSubBinding;
     ccw?: EncoderSubBinding;
   };
-  smartAction?: {
-    type: 'text' | 'terminal' | 'hotkey' | 'mouse';
-    textPayload?: string;
-    terminalCmd?: string;
-    hotkeyCombo?: string[];
-    mouseAction?: 'left_click' | 'right_click' | 'middle_click' | 'double_click' | 'scroll_up' | 'scroll_down';
-  };
+  smartAction?: SmartActionPayload;
   multiGestureActions?: Partial<Record<MultiGestureKey, KeyAssignment>>;
   actionSteps?: ActionAdvanceStep[];
 }
@@ -136,11 +140,4 @@ export interface BasicSection {
 
 export interface PresetBreakdown {
   [slot: string]: string;
-}
-
-export interface LightingTabConfig {
-  mode: 'static' | 'breathing' | 'rainbow' | 'reactive' | 'off';
-  hue: number;
-  brightness: number;
-  speed: number;
 }

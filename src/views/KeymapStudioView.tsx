@@ -13,6 +13,8 @@ import {
   Play,
   Check,
   Disc,
+  Pencil,
+  X,
 } from '../icons';
 import {
   KeySlotId,
@@ -21,6 +23,7 @@ import {
   LayerKeymap,
   ProfileData,
   KeyAssignment,
+  SmartActionPayload,
 } from '../types';
 import { BASIC_KEY_SECTIONS } from '../constants/basicKeys';
 import { MacropadDevice } from '../components/MacropadDevice';
@@ -39,6 +42,7 @@ export interface KeymapStudioViewProps {
   onSelectLayer: (idx: number) => void;
   currentLayer: LayerKeymap;
   currentLayerName: string;
+  layerNames: Record<string, string>;
   onRenameLayer: (name: string) => void;
   onAddLayer: () => void;
   onDeleteLayer: (index: number) => void;
@@ -67,6 +71,7 @@ export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
   onSelectLayer,
   currentLayer,
   currentLayerName,
+  layerNames,
   onRenameLayer,
   onAddLayer,
   onDeleteLayer,
@@ -88,6 +93,20 @@ export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
   const [selectedEncoderSub, setSelectedEncoderSub] = useState<EncoderSubActionId>('press');
   const [activeTab, setActiveTab] = useState<MappingTabId>('basic');
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [isRenamingLayer, setIsRenamingLayer] = useState(false);
+  const [layerNameDraft, setLayerNameDraft] = useState('');
+
+  const layerNameFor = (index: number) => layerNames[`${currentProfile.id}-${index}`] ?? '';
+
+  const beginRenameLayer = () => {
+    setLayerNameDraft(layerNameFor(activeLayerIndex));
+    setIsRenamingLayer(true);
+  };
+
+  const commitLayerRename = () => {
+    onRenameLayer(layerNameDraft.trim());
+    setIsRenamingLayer(false);
+  };
 
   const currentAssignment: KeyAssignment =
     selectedSlot === 'encoder'
@@ -146,7 +165,7 @@ export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
     setIconPickerOpen(false);
   };
 
-  const handleSaveSmartAction = (smartData: any) => {
+  const handleSaveSmartAction = (smartData: SmartActionPayload) => {
     const updated: KeyAssignment = {
       ...currentAssignment,
       type: 'macro',
@@ -203,40 +222,105 @@ export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
         </div>
 
         {/* Layer Tabs Pill Navigation */}
-        <div className="w-full max-w-xl flex items-center justify-between my-4 bg-[#0a0d14] p-1.5 rounded-2xl border border-white/5">
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {currentProfile.layers.map((_, idx) => (
+        <div
+          className="w-full max-w-xl flex items-center justify-between my-4 bg-[#0a0d14] p-1.5 rounded-2xl border border-white/5"
+          role="group"
+          aria-label="Layers"
+        >
+          {isRenamingLayer ? (
+            <form
+              className="flex items-center gap-1.5 flex-1 min-w-0 px-1"
+              onSubmit={(event) => {
+                event.preventDefault();
+                commitLayerRename();
+              }}
+            >
+              <input
+                autoFocus
+                value={layerNameDraft}
+                onChange={(event) => setLayerNameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') setIsRenamingLayer(false);
+                }}
+                aria-label="Layer name"
+                maxLength={32}
+                className="flex-1 min-w-0 bg-[#0b0e17] border border-blue-500/40 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              />
               <button
-                key={idx}
-                onClick={() => onSelectLayer(idx)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                  idx === activeLayerIndex
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-semibold'
-                    : 'text-neutral-400 hover:text-white hover:bg-white/[0.03]'
-                }`}
+                type="submit"
+                aria-label="Save layer name"
+                className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-all"
               >
-                <Layers className="w-3.5 h-3.5" />
-                Layer {idx + 1}
+                <Check className="w-4 h-4" aria-hidden="true" />
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setIsRenamingLayer(false)}
+                aria-label="Cancel renaming layer"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] transition-all"
+              >
+                <X className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5 overflow-x-auto">
+                {currentProfile.layers.map((_, idx) => {
+                  const name = layerNameFor(idx);
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => onSelectLayer(idx)}
+                      aria-current={idx === activeLayerIndex ? 'true' : undefined}
+                      title={name || `Layer ${idx + 1}`}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                        idx === activeLayerIndex
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-semibold'
+                          : 'text-neutral-400 hover:text-white hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span className="max-w-[110px] truncate">{name || `Layer ${idx + 1}`}</span>
+                    </button>
+                  );
+                })}
 
-            <button
-              onClick={onAddLayer}
-              className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-400 hover:text-white border border-white/5 transition-all"
-              title="Add New Blank Layer"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={onAddLayer}
+                  className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-400 hover:text-white border border-white/5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  title="Add new blank layer"
+                  aria-label="Add new blank layer"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
 
-          {currentProfile.layers.length > 1 && (
-            <button
-              onClick={() => onDeleteLayer(activeLayerIndex)}
-              className="p-1.5 rounded-xl text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-              title="Delete Active Layer"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={beginRenameLayer}
+                  className="p-1.5 rounded-xl text-neutral-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  title="Rename active layer"
+                  aria-label="Rename active layer"
+                >
+                  <Pencil className="w-4 h-4" aria-hidden="true" />
+                </button>
+
+                {currentProfile.layers.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteLayer(activeLayerIndex)}
+                    className="p-1.5 rounded-xl text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                    title="Delete active layer"
+                    aria-label="Delete active layer"
+                  >
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -314,15 +398,19 @@ export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setIconPickerOpen(true)}
-              className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 hover:text-white border border-white/5 text-xs transition-all"
+              aria-label="Change key icon"
+              className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 hover:text-white border border-white/5 text-xs transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               title="Change Key Icon"
             >
-              <Sparkles className="w-4 h-4 text-blue-400" />
+              <Sparkles className="w-4 h-4 text-blue-400" aria-hidden="true" />
             </button>
             <button
+              type="button"
               onClick={handleClearSlot}
-              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs transition-all"
+              aria-label="Clear key assignment"
+              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               title="Clear Key Assignment"
             >
               <Trash2 className="w-4 h-4" />

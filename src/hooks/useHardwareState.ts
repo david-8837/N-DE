@@ -6,6 +6,8 @@ import {
 } from '../types';
 import { getEncoderActions } from '../utils/helpers';
 import { notifyDeviceEvent } from '../utils/desktop';
+import { errorMessage } from '../utils/errors';
+import { SerialPortLike, getSerialApi } from '../types/serial';
 
 interface UseHardwareStateProps {
   currentLayer: LayerKeymap;
@@ -30,7 +32,7 @@ export function useHardwareState({
   allowTerminalSmartActions,
 }: UseHardwareStateProps) {
   const [hardwareConnected, setHardwareConnected] = useState(false);
-  const [hardwarePort, setHardwarePort] = useState<any>(null);
+  const [hardwarePort, setHardwarePort] = useState<SerialPortLike | null>(null);
   const [hardwareSyncStatus, setHardwareSyncStatus] = useState<
     'idle' | 'syncing' | 'synced' | 'error'
   >('idle');
@@ -51,7 +53,7 @@ export function useHardwareState({
   const [testedHardwareKeys, setTestedHardwareKeys] = useState<
     Record<string, boolean>
   >({});
-  const serialReaderRef = useRef<any>(null);
+  const serialReaderRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
 
   const addHardwareLog = (msg: string) => {
     setHardwareLogs((prev) => [
@@ -64,19 +66,15 @@ export function useHardwareState({
     setHardwareLogs([]);
   };
 
-  const sendHardwareCommand = async (cmdData: any) => {
-    if (!hardwarePort || !hardwarePort.writable) {
-      return false;
-    }
+  const sendHardwareCommand = async (cmdData: Record<string, unknown>) => {
+    if (!hardwarePort?.writable) return false;
     try {
-      const textEncoder = new TextEncoderStream();
-      textEncoder.readable.pipeTo(hardwarePort.writable);
-      const writer = textEncoder.writable.getWriter();
-      await writer.write(JSON.stringify(cmdData) + '\n');
+      const writer = hardwarePort.writable.getWriter();
+      await writer.write(new TextEncoder().encode(JSON.stringify(cmdData) + '\n'));
       writer.releaseLock();
       return true;
-    } catch (e: any) {
-      addHardwareLog(`Send Error: ${e.message}`);
+    } catch (error) {
+      addHardwareLog(`Send Error: ${errorMessage(error)}`);
       return false;
     }
   };
@@ -90,10 +88,11 @@ export function useHardwareState({
           showToast('Terminal actions are disabled in Settings');
           return;
         }
-        if ((window as any).electronAPI?.executeSmartAction) {
-          const res = await (window as any).electronAPI.executeSmartAction(
-            payload
-          );
+        if (window.electronAPI?.executeSmartAction) {
+          const res = await window.electronAPI.executeSmartAction({
+            type: 'Cmd',
+            value: payload.terminalCmd,
+          });
           if (res.success) {
             showToast(`Executed: ${payload.terminalCmd}`);
           } else {
@@ -101,16 +100,19 @@ export function useHardwareState({
           }
         }
       }
-    } catch (e) {}
+    } catch {
+      /* malformed smart-action payload: ignore */
+    }
   };
 
   const handleConnectHardware = async () => {
-    if (!('serial' in navigator)) {
+    const serial = getSerialApi();
+    if (!serial) {
       showToast('Web Serial API not supported in this browser environment');
       return;
     }
     try {
-      const port = await (navigator as any).serial.requestPort({
+      const port = await serial.requestPort({
         filters: [{ usbVendorId: 0x2e8a }],
       });
       await port.open({ baudRate: 115200 });
@@ -122,8 +124,14 @@ export function useHardwareState({
         void notifyDeviceEvent(true, 'RP2040-Zero');
       }
 
+      if (!port.readable) {
+        throw new Error('Serial port exposes no readable stream');
+      }
       const textDecoder = new TextDecoderStream();
-      port.readable.pipeTo(textDecoder.writable);
+      // TextDecoderStream declares BufferSource, the port emits Uint8Array.
+      void port.readable.pipeTo(
+        textDecoder.writable as unknown as WritableStream<Uint8Array>
+      );
       const reader = textDecoder.readable.getReader();
       serialReaderRef.current = reader;
 
@@ -208,19 +216,21 @@ export function useHardwareState({
                     } else if (data.status === 'OK' && data.device) {
                       showToast(`Connected to ${data.device} (${data.mcu})`);
                     }
-                  } catch (e) {}
+                  } catch {
+      /* malformed smart-action payload: ignore */
+    }
                 }
               }
             }
           }
-        } catch (err: any) {
+        } catch (error) {
           if (hardwareConnected) {
-            addHardwareLog(`Read Error: ${err.message}`);
+            addHardwareLog(`Read Error: ${errorMessage(error)}`);
           }
         }
       })();
-    } catch (err: any) {
-      addHardwareLog(`Connection Failed: ${err.message}`);
+    } catch (error) {
+      addHardwareLog(`Connection Failed: ${errorMessage(error)}`);
       showToast('Could not open serial connection');
     }
   };
@@ -233,7 +243,9 @@ export function useHardwareState({
       if (hardwarePort) {
         await hardwarePort.close();
       }
-    } catch (e) {}
+    } catch {
+      /* malformed smart-action payload: ignore */
+    }
     setHardwarePort(null);
     setHardwareConnected(false);
     addHardwareLog('Disconnected from RP2040-Zero');

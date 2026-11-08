@@ -43,6 +43,7 @@ export { default as Mouse } from 'lucide-react/dist/esm/icons/mouse.js';
 export { default as Move } from 'lucide-react/dist/esm/icons/move.js';
 export { default as Music } from 'lucide-react/dist/esm/icons/music.js';
 export { default as PenTool } from 'lucide-react/dist/esm/icons/pen-tool.js';
+export { default as Pencil } from 'lucide-react/dist/esm/icons/pencil.js';
 export { default as Play } from 'lucide-react/dist/esm/icons/play.js';
 export { default as Plus } from 'lucide-react/dist/esm/icons/plus.js';
 export { default as Redo2 } from 'lucide-react/dist/esm/icons/redo-2.js';

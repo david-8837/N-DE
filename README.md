@@ -75,6 +75,18 @@ The full icon catalogue is only fetched when the icon picker opens; the startup 
 
 ---
 
+## Visual & browser regression tests
+
+A Playwright suite covers both viewports (1280×900 and the 1024×768 minimum), plus checks that no page overflows horizontally and that every visible control has an accessible name.
+
+```bash
+npm run test:visual          # compare against committed baselines
+npm run test:visual:update   # regenerate baselines after an intentional UI change
+npm run lint:e2e             # typecheck the e2e sources
+```
+
+The baselines do not exist yet — run `npm run test:visual:update` once locally or in CI (see `.github/workflows/visual-regression.yml`), review the generated PNGs, and commit them. The first run also needs `npx playwright install chromium`.
+
 ## Security model
 
 The renderer is untrusted. `nodeIntegration` is off, `contextIsolation` is on, and the sandbox is enabled.

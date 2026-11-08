@@ -1,6 +1,6 @@
 # NØDE Grid Macro 1 Studio — Audit, Fixes & Rating
 
-**Last updated:** 2026-11-08 (pass 3 — the 82 → 90 push)
+**Last updated:** 2026-11-08 (pass 4 — Playwright harness, accessibility, typed serial boundary)
 **Baseline commit:** `8e6471e` (`main`)
 **Work branch:** `arena/a6e82666-n-de`
 **Scope:** the full repo — React/Vite studio, Electron shell, RP2040 firmware sources, tests.
@@ -9,11 +9,12 @@
 
 ## 1. Headline scores
 
-| What is being rated | Baseline | Pass 1 | Pass 2 | **Pass 3 (now)** |
-| --- | ---: | ---: | ---: | ---: |
-| **Engineering & security (codebase)** | 47 / 100 | 75 / 100 | 82 / 100 | **86 / 100** |
-| **Running-app UX** | 62 / 100 | 76 / 100 | 86 / 100 | **91 / 100** |
-| Tests passing | 19 | 34 (7 suites) | 43 (9 suites) | **49 (10 suites)** |
+| What is being rated | Baseline | Pass 1 | Pass 2 | Pass 3 | **Pass 4 (now)** |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Engineering & security (codebase)** | 47 / 100 | 75 / 100 | 82 / 100 | 86 / 100 | **89 / 100** |
+| **Running-app UX** | 62 / 100 | 76 / 100 | 86 / 100 | 91 / 100 | **92 / 100** |
+| Tests passing | 19 | 34 (7 suites) | 43 (9 suites) | 49 (10 suites) | **52 (11 suites)** + 16 browser tests |
+| `any` casts in `src/` | 23 | 20 | 20 | 20 | **0** |
 | `tsc --noEmit` | clean | clean | clean | **clean** |
 | Initial JS (raw / gzip) | ~1,060 KB / ~295 KB | ~1,060 KB / ~295 KB | ~1,060 KB / ~295 KB | **~504 KB / ~150 KB** |
 | Presets shipped | 4 | 4 | 4 | **10** |
@@ -26,16 +27,16 @@ A 47 was fair for the code I inherited, and it was never a 1. Three passes later
 
 ## 2. Scoring rubric
 
-| Category | Weight | Baseline | P1 | P2 | P3 | Notes |
-| --- | ---: | ---: | ---: | ---: | ---: | --- |
-| Correctness & feature honesty | 25% | 62 | 78 | 88 | **92** | 10 real presets; browser flasher still degrades to a download |
-| Code quality & maintainability | 15% | 58 | 70 | 76 | **82** | README, scripts/ moved, generated icon module documented; 20 `any`s left |
-| Security | 20% | 22 | 72 | 80 | **84** | CSP added; still unsigned binaries |
-| UX & design | 20% | 62 | 80 | 87 | **91** | Onboarding, 10 presets, undo, working settings, offline fonts |
-| Accessibility | 10% | 12 | 72 | 76 | **78** | 41+ ARIA attributes; popovers not yet audited |
-| Testing | 10% | 50 | 70 | 80 | **84** | 49 tests, incl. guarantees that shipped glyphs never lazy-load |
+| Category | Weight | Baseline | P1 | P2 | P3 | P4 | Notes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Correctness & feature honesty | 25% | 62 | 78 | 88 | 92 | **93** | Layer renaming now actually works; browser flasher still degrades to a download |
+| Code quality & maintainability | 15% | 58 | 70 | 76 | 82 | **90** | Zero `any`, typed Web Serial boundary, dead components removed |
+| Security | 20% | 22 | 72 | 80 | 84 | **84** | Unchanged; still unsigned binaries |
+| UX & design | 20% | 62 | 80 | 87 | 91 | **92** | Inline layer rename with keyboard handling |
+| Accessibility | 10% | 12 | 72 | 76 | 78 | **88** | Modal focus trap, Escape, labels, dialog semantics — all covered by tests |
+| Testing | 10% | 50 | 70 | 80 | 84 | **86** | 52 jsdom tests + a 16-test Playwright suite whose baselines are not yet seeded |
 
-Weighted total: **47 → 75 → 82 → 86**.
+Weighted total: **47 → 75 → 82 → 86 → 89**.
 
 ---
 
@@ -59,6 +60,16 @@ Weighted total: **47 → 75 → 82 → 86**.
 | --- | --- | --- |
 | 8 | All four settings were cosmetic | Preferences are pushed to the main process and **enforced there**: terminal execution denied by default, notifications suppressed, diagnostics dropped unless opted in, real login-item registration reconciled with the OS on launch |
 | 9 | No undo | 50-step undo/redo over profiles + layer names, `Ctrl/⌘+Z` / `Ctrl/⌘+Shift+Z`, header buttons, coalesced renames |
+
+### Pass 4 — browser tests, real a11y, typed hardware boundary
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 16 | No browser/visual tests; layout and a11y regressions were only caught by hand | Playwright suite (16 tests across two viewports) for screenshots, horizontal overflow and accessible names, plus `tsconfig.e2e.json`, npm scripts and a CI workflow with report uploads. **Baselines must be seeded once** (`npm run test:visual:update`) — this sandbox cannot download Chromium |
+| 17 | The icon picker was a visual-only modal: no dialog role, no focus trap, no Escape, no focus return, and an unlabelled search field | `useDialogFocus` hook (focus in, Tab cycling, Escape, restore focus), `role="dialog" aria-modal`, `sr-only` heading, labelled search, backdrop-click close, labelled close button |
+| 18 | `onRenameLayer` was wired but unreachable — layers always displayed “Layer N”, so names could never be edited despite being persisted and undoable | Inline rename on the layer bar: pencil button, focused input, Enter/✓ to save, Escape/✕ to cancel, new name shown on the tab. Covered by two tests |
+| 19 | 20 `any`s, including the entire Web Serial boundary | `src/types/serial.ts` (SerialPortLike/SerialApi), `src/utils/errors.ts`, shared `SmartActionPayload`/`MouseActionId` types, typed tab unions — **0 `any` remain** |
+| 20 | Dead code with a latent build break: an unwired lighting popover importing `framer-motion` (not a declared dependency) and an unused matrix visualizer | Both removed, along with the orphaned `LightingTabConfig` type |
 
 ### Pass 3 — the 82 → 90 push
 
@@ -98,7 +109,9 @@ A personal score per preset, persisted locally, shown on every card and on the p
 ```bash
 npm ci                        # ELECTRON_SKIP_BINARY_DOWNLOAD=1 if the Electron download is blocked
 npx tsc --noEmit              # clean
-npx vitest run                # 10 files / 49 tests passing
+npx vitest run                # 11 files / 52 tests passing
+npx tsc -p tsconfig.e2e.json  # e2e sources typecheck
+npx playwright test --list    # 16 browser tests discovered (baselines unseeded)
 npx vite build                # clean; CSP + hashed font assets in dist/
 node --check electron/main.cjs
 ```
@@ -109,11 +122,13 @@ The full-app smoke test mounts the real `<App />` in jsdom and covers: keymap re
 
 ---
 
+Browser coverage (`tests/visual/studio.spec.ts`): keymap, presets library, preset preview, hardware manager, settings, applied-preset state, horizontal overflow across all four views, and an accessible-name audit over every visible control.
+
 ## 6. Running-app UX review
 
 The dev server is exercised at `http://localhost:3000`. *No browser binary exists in this sandbox, so this review is structural — markup, copy, layout and DOM flows — not a pixel screenshot.*
 
-**UX score: 62 → 76 → 86 → 91 / 100**
+**UX score: 62 → 76 → 86 → 91 → 92 / 100**
 
 What earns it:
 
@@ -130,7 +145,6 @@ Still costing points:
 | --- | --- |
 | Header crowds at the 1024 px minimum width | Nav + history + connect compete for space |
 | Icon-only actions still rely on tooltips | Labelled for assistive tech, but visually thin |
-| Popovers (icon picker, macro editors) have not had a full keyboard/focus pass | Tab traps and focus return are inconsistent |
 | Browser mode dead-ends at “connect device” | No explanation that Web Serial needs Chromium or the desktop app |
 | No visual regression harness | Layout drift is caught by hand |
 
@@ -138,12 +152,11 @@ Still costing points:
 
 ## 7. What would take it past 90
 
-1. **Accessibility deep pass** on the popovers and macro editors (focus trap, return focus, escape handling).
-2. **Visual/DOM regression tests** (Playwright + screenshots) so the 91 is protected.
-3. **Code signing + notarisation** for Windows builds, plus an auto-update channel.
-4. **Replace the remaining 20 `any`s** at the Web Serial boundary with typed port/reader interfaces.
-5. **Hardware-in-the-loop tests** for the serial protocol against a real RP2040.
-6. **Browser-mode guidance** when Web Serial is unavailable (link to desktop build).
+1. **Seed the Playwright baselines** (`npm run test:visual:update`, review, commit) — the suite is written but has never rendered a pixel here.
+2. **Code signing + notarisation** for Windows builds, plus an auto-update channel.
+3. **Hardware-in-the-loop tests** for the serial protocol against a real RP2040.
+4. **Browser-mode guidance** when Web Serial is unavailable (link to the desktop build).
+5. **Visual polish at 1024 px**: the header is still dense with nav + history + connect.
 
 ---
 

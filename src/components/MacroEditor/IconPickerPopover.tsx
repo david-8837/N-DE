@@ -1,7 +1,8 @@
 // src/components/MacroEditor/IconPickerPopover.tsx - Lazy-Loaded Icon & Emoji Selector Popover
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Search, Sparkles } from '../../icons';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 export interface IconPickerPopoverProps {
   isOpen: boolean;
@@ -27,6 +28,9 @@ export function IconPickerPopover({
     string,
     React.ComponentType<{ className?: string }>
   > | null>(null);
+  const titleId = useId();
+  const searchRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useDialogFocus(isOpen, onClose, searchRef);
 
   // Dynamic on-demand code-splitting of the 500KB icon/emoji database
   useEffect(() => {
@@ -62,20 +66,35 @@ export function IconPickerPopover({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm select-none">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm select-none"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
+      >
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ duration: 0.15 }}
           className="w-full max-w-lg bg-[#0e121b] border border-white/10 rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden"
         >
+          <h2 id={titleId} className="sr-only">
+            Choose an icon or emoji
+          </h2>
+
           {/* Header */}
           <div className="p-4 border-b border-white/5 flex items-center justify-between">
             {/* Tab switch */}
             <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/5">
               <button
+                type="button"
                 onClick={() => setTab('Icon')}
+                aria-pressed={tab === 'Icon'}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   tab === 'Icon' ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-400 hover:text-white'
                 }`}
@@ -83,7 +102,9 @@ export function IconPickerPopover({
                 Icons
               </button>
               <button
+                type="button"
                 onClick={() => setTab('Emoji')}
+                aria-pressed={tab === 'Emoji'}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   tab === 'Emoji' ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-400 hover:text-white'
                 }`}
@@ -93,22 +114,29 @@ export function IconPickerPopover({
             </div>
 
             <button
+              type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.04] transition-all"
+              aria-label="Close icon picker"
+              className="p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.04] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
 
           {/* Clean Search Input (No placeholder text per user constraint) */}
           <div className="px-4 py-3 border-b border-white/5 bg-[#0a0d14]">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <Search
+                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500"
+                aria-hidden="true"
+              />
               <input
-                type="text"
+                ref={searchRef}
+                type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder=""
+                aria-label="Search icons and emojis"
+                placeholder="Search icons and emojis"
                 className="w-full bg-[#151924] border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-transparent focus:outline-none focus:border-blue-500/50"
               />
             </div>
