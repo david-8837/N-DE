@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Sliders, Cpu, Sparkles, Undo2, Redo2 } from 'lucide-react';
+import { Layers, Sliders, Cpu, Sparkles, Undo2, Redo2 } from '../icons';
 
 export interface HeaderProps {
   activeNav: string;

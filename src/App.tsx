@@ -25,6 +25,7 @@ import { useHardwareState } from './hooks/useHardwareState';
 import { usePersistentState } from './hooks/usePersistentState';
 import { usePresetRatings } from './hooks/usePresetRatings';
 import { useDocumentHistory } from './hooks/useDocumentHistory';
+import { OnboardingCard } from './components/OnboardingCard';
 import {
   pushRuntimePolicy,
   readLaunchAtStartup,
@@ -35,6 +36,7 @@ import {
   PersistedSettings,
   STORAGE_KEYS,
   clearStudioStorage,
+  isBoolean,
   isIndex,
   isProfileList,
   isSettings,
@@ -100,6 +102,12 @@ export default function App() {
     setSettings((prev) => ({ ...prev, allowTerminalSmartActions: val }));
   const setAllowDeviceNotifications = (val: boolean) =>
     setSettings((prev) => ({ ...prev, allowDeviceNotifications: val }));
+
+  const [onboardingDismissed, setOnboardingDismissed] = usePersistentState<boolean>(
+    STORAGE_KEYS.onboardingDismissed,
+    false,
+    isBoolean
+  );
 
   const { ratings, ratePreset, clearPresetRating, clearAllRatings } = usePresetRatings();
 
@@ -419,6 +427,14 @@ export default function App() {
             onFlashKeymap={handleSyncKeymapToHardware}
             hardwareConnected={hardwareConnected}
             hardwareSyncStatus={hardwareSyncStatus}
+            onboarding={
+              onboardingDismissed ? null : (
+                <OnboardingCard
+                  onBrowsePresets={() => setActiveNav('Presets')}
+                  onDismiss={() => setOnboardingDismissed(true)}
+                />
+              )
+            }
           />
         )}
 
@@ -472,6 +488,10 @@ export default function App() {
             allowDeviceNotifications={allowDeviceNotifications}
             setAllowDeviceNotifications={handleSetAllowDeviceNotifications}
             onResetFactoryDefaults={handleResetFactoryDefaults}
+            onShowOnboarding={() => {
+              setOnboardingDismissed(false);
+              setActiveNav('Keymap');
+            }}
           />
         )}
       </main>

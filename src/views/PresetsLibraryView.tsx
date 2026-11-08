@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Sparkles, Download, Check, Eye, ArrowDownWideNarrow, Star } from 'lucide-react';
+import { Search, Sparkles, Download, Check, Eye, ArrowDownWideNarrow, Star } from '../icons';
 import { PresetItem, ProfileData } from '../types';
 import { PRESET_LIBRARY } from '../constants/presets';
 import { PresetAppIcon } from '../components/PresetAppIcon';

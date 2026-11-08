@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   layerNames: `${PREFIX}.layerNames`,
   settings: `${PREFIX}.settings`,
   ratings: `${PREFIX}.ratings`,
+  onboardingDismissed: `${PREFIX}.onboardingDismissed`,
 } as const;
 
 function storage(): Storage | null {
@@ -87,6 +88,10 @@ export function isProfileData(value: unknown): value is ProfileData {
 
 export function isProfileList(value: unknown): value is ProfileData[] {
   return Array.isArray(value) && value.length > 0 && value.every(isProfileData);
+}
+
+export function isBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean';
 }
 
 export function isIndex(value: unknown): value is number {

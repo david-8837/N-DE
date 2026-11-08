@@ -1,4 +1,4 @@
-import { encodeKeycode, decodeKeycode, buildSetKeyPacket } from './src/hardwareProtocol';
+import { encodeKeycode, decodeKeycode, buildSetKeyPacket } from '../src/hardwareProtocol';
 
 console.log("===============================================================");
 console.log("SIMULATING ALL 9 MATRIX KEYS + 3 DIAL ACTIONS ACROSS 4 LAYERS");

@@ -1,11 +1,11 @@
 import React from 'react';
-import { ArrowLeft, Check, Download, Layers } from 'lucide-react';
+import { ArrowLeft, Check, Download, Layers } from '../icons';
 import { PresetItem } from '../types';
 import { FlatDialControl } from '../components/FlatDialControl';
 import { RatingControl } from '../components/RatingControl';
 import { PresetAppIcon } from '../components/PresetAppIcon';
 import { getToolIconId } from '../constants/presets';
-import * as LucideIcons from 'lucide-react';
+import { LazyIcon } from '../components/LazyIcon';
 
 export interface PresetPreviewViewProps {
   preset: PresetItem;
@@ -109,7 +109,6 @@ export const PresetPreviewView: React.FC<PresetPreviewViewProps> = ({
             {slots.map((slot) => {
               const label = preset.breakdown[slot] || 'Unassigned';
               const iconName = getToolIconId(label);
-              const IconComp = (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
 
               return (
                 <div
@@ -117,7 +116,7 @@ export const PresetPreviewView: React.FC<PresetPreviewViewProps> = ({
                   className="w-20 h-20 rounded-2xl p-2 flex flex-col items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
                   style={{ backgroundColor: preset.color }}
                 >
-                  <IconComp className="w-5 h-5 mb-1 opacity-90 drop-shadow" />
+                  <LazyIcon name={iconName} className="w-5 h-5 mb-1 opacity-90 drop-shadow" />
                   <span className="text-[10px] font-semibold tracking-tight text-center truncate max-w-[65px]">
                     {label}
                   </span>
@@ -154,7 +153,6 @@ export const PresetPreviewView: React.FC<PresetPreviewViewProps> = ({
             {slots.map((slot, index) => {
               const label = preset.breakdown[slot] || 'Unassigned';
               const iconName = getToolIconId(label);
-              const IconComp = (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
 
               return (
                 <div
@@ -165,7 +163,7 @@ export const PresetPreviewView: React.FC<PresetPreviewViewProps> = ({
                     <span className="w-6 h-6 rounded-lg bg-white/5 text-[11px] font-mono font-bold text-neutral-400 flex items-center justify-center">
                       K{index + 1}
                     </span>
-                    <IconComp className="w-4 h-4 text-blue-400" />
+                    <LazyIcon name={iconName} className="w-4 h-4 text-blue-400" />
                     <span className="text-sm font-medium text-white">{label}</span>
                   </div>
                   <span className="text-xs font-mono text-neutral-500 uppercase">{slot}</span>

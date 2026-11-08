@@ -13,7 +13,7 @@ import {
   Play,
   Check,
   Disc,
-} from 'lucide-react';
+} from '../icons';
 import {
   KeySlotId,
   EncoderSubActionId,
@@ -54,6 +54,8 @@ export interface KeymapStudioViewProps {
   onFlashKeymap: () => void;
   hardwareConnected: boolean;
   hardwareSyncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  /** Optional first-run guidance rendered above the macropad. */
+  onboarding?: React.ReactNode;
 }
 
 export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
@@ -80,6 +82,7 @@ export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
   onFlashKeymap,
   hardwareConnected,
   hardwareSyncStatus,
+  onboarding,
 }) => {
   const [selectedSlot, setSelectedSlot] = useState<KeySlotId>('r1c1');
   const [selectedEncoderSub, setSelectedEncoderSub] = useState<EncoderSubActionId>('press');
@@ -238,6 +241,8 @@ export const KeymapStudioView: React.FC<KeymapStudioViewProps> = ({
         </div>
 
         {/* Center: The Physical Macropad Visualizer */}
+        {onboarding && <div className="w-full max-w-xl mt-3">{onboarding}</div>}
+
         <div className="my-auto py-2 flex flex-col items-center">
           <MacropadDevice
             currentLayer={currentLayer}

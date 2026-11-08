@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Zap,
-} from 'lucide-react';
+} from '../icons';
 import { KeySlotId, LayerKeymap } from '../types';
 import {
   RP2040_PINOUT_GUIDE,

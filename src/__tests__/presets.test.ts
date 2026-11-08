@@ -10,6 +10,12 @@ describe('Preset System and Tool Icon Mapping', () => {
     expect(ids).toContain('photoshop');
     expect(ids).toContain('premiere');
     expect(ids).toContain('vscode');
+    expect(ids).toContain('blender');
+    expect(ids).toContain('figma');
+    expect(ids).toContain('ableton');
+    expect(ids).toContain('discord');
+    expect(ids).toContain('notion');
+    expect(ids).toContain('excel');
 
     for (const preset of PRESET_LIBRARY) {
       expect(preset.name).toBeTruthy();
@@ -20,7 +26,18 @@ describe('Preset System and Tool Icon Mapping', () => {
     }
   });
 
-  it('should resolve relevant tool icon names based on key label heuristics', () => {
+  it('ships ten distinct workflows with unique ids and colours', () => {
+    expect(PRESET_LIBRARY).toHaveLength(10);
+    expect(new Set(PRESET_LIBRARY.map((p) => p.id)).size).toBe(10);
+    expect(new Set(PRESET_LIBRARY.map((p) => p.color)).size).toBe(10);
+    for (const preset of PRESET_LIBRARY) {
+      expect(preset.author).toBeTruthy();
+      expect(preset.tags.length).toBeGreaterThan(0);
+      expect(preset.encoderConfig?.cw).toBeTruthy();
+    }
+  });
+
+  it('resolves relevant tool icon names based on key label heuristics', () => {
     expect(getToolIconId('Frame Tool (F)')).toBe('Grid');
     expect(getToolIconId('Text Tool (T)')).toBe('FileText');
     expect(getToolIconId('Duplicate (⌘D)')).toBe('Copy');

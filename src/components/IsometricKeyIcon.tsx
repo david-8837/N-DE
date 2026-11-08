@@ -1,6 +1,7 @@
 import React from 'react';
-import * as LucideIcons from 'lucide-react';
+import { Plus } from '../icons';
 import { KeyAssignment } from '../types';
+import { LazyIcon } from './LazyIcon';
 
 export interface IsometricKeyIconProps {
   assignment: KeyAssignment;
@@ -11,7 +12,7 @@ export const IsometricKeyIcon: React.FC<IsometricKeyIconProps> = ({ assignment }
   if (assignment.type === 'none') {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-neutral-600">
-        <LucideIcons.Plus className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
+        <Plus className="w-5 h-5 opacity-40 group-hover:opacity-80 transition-opacity" />
       </div>
     );
   }
@@ -25,11 +26,10 @@ export const IsometricKeyIcon: React.FC<IsometricKeyIconProps> = ({ assignment }
   }
 
   const iconName = assignment.customIcon || 'Sparkles';
-  const IconComp = (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
 
   return (
     <div className="flex flex-col items-center justify-center gap-1.5 w-full">
-      <IconComp className="w-5 h-5 text-neutral-200 drop-shadow" />
+      <LazyIcon name={iconName} className="w-5 h-5 text-neutral-200 drop-shadow" />
       {assignment.label && (
         <span className="text-[11px] font-semibold text-white/90 tracking-tight text-center max-w-[70px] truncate leading-none">
           {assignment.label}

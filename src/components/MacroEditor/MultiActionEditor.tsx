@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ArrowDown, Zap, Clock } from 'lucide-react';
+import { Plus, Trash2, ArrowDown, Zap, Clock } from '../../icons';
 import { ActionAdvanceStep, ActionToken } from '../../types';
 
 export interface MultiActionEditorProps {

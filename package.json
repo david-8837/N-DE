@@ -17,7 +17,9 @@
     "build:win": "vite build && electron-builder --win zip dir --x64 --publish never",
     "build:win:nsis": "vite build && electron-builder --win nsis --x64 --publish never",
     "clean": "rm -rf dist dist_electron server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "check:firmware": "tsx scripts/check_firmware_and_keys.ts",
+    "simulate:matrix": "tsx scripts/simulate_matrix.ts"
   },
   "build": {
     "appId": "ai.node.gridmacro1",
@@ -58,6 +60,8 @@
     }
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",

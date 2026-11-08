@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sliders, Shield, Bell, RefreshCw, Monitor, Globe } from 'lucide-react';
+import { Sliders, Shield, Bell, RefreshCw, Monitor, Globe } from '../icons';
 import { SettingsSwitch } from '../utils/helpers';
 import { isDesktopApp } from '../utils/desktop';
 
@@ -13,6 +13,7 @@ export interface SettingsViewProps {
   allowDeviceNotifications: boolean;
   setAllowDeviceNotifications: (val: boolean) => void;
   onResetFactoryDefaults: () => void;
+  onShowOnboarding: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -25,6 +26,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   allowDeviceNotifications,
   setAllowDeviceNotifications,
   onResetFactoryDefaults,
+  onShowOnboarding,
 }) => {
   const isDesktop = isDesktopApp();
 
@@ -106,13 +108,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="text-xs font-mono text-neutral-400 mt-0.5">v1.0.2 (Build 2026.11)</div>
           </div>
 
+          <div className="flex items-center gap-2">
           <button
+            type="button"
+            onClick={onShowOnboarding}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 border border-white/10 text-xs font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            Show welcome guide
+          </button>
+          <button
+            type="button"
             onClick={onResetFactoryDefaults}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-medium transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Reset to Factory Defaults
           </button>
+          </div>
         </div>
       </div>
     </div>

@@ -7,3 +7,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local-only artifacts
+.aistudio/
+public/assets/
+diagnostics.log

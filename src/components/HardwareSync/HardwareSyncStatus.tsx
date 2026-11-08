@@ -1,6 +1,6 @@
 // src/components/HardwareSync/HardwareSyncStatus.tsx - Hardware Connection Badge & Synchronization Pill
 import React from 'react';
-import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertCircle } from '../../icons';
 
 interface HardwareSyncStatusProps {
   connected: boolean;

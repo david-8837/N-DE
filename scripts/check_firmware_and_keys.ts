@@ -11,7 +11,7 @@ import {
   QMK_VIA_JSON,
   ARDUINO_FIRMWARE_INO,
   RP2040_CODE_PY
-} from './src/hardwareProtocol';
+} from '../src/hardwareProtocol';
 
 console.log("==================================================");
 console.log("1. TESTING KEY MATRIX PINOUT MAPPING (3x3 + Dial)");

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Type, Zap, Mouse, Check } from 'lucide-react';
+import { Terminal, Type, Zap, Mouse, Check } from '../../icons';
 import { SmartActionSubTab } from '../../types';
 
 export interface SmartActionEditorProps {

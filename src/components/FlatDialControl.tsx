@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCw, RotateCcw, Disc } from 'lucide-react';
+import { RotateCw, RotateCcw, Disc } from '../icons';
 import { KeyAssignment } from '../types';
 
 export interface FlatDialControlProps {

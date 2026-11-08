@@ -1,8 +1,7 @@
 // src/components/MacroEditor/IconPickerPopover.tsx - Lazy-Loaded Icon & Emoji Selector Popover
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Search } from 'lucide-react';
-import { CustomPickerIcon } from '../CustomPickerIcon';
+import { X, Search, Sparkles } from '../../icons';
 
 export interface IconPickerPopoverProps {
   isOpen: boolean;
@@ -24,15 +23,20 @@ export function IconPickerPopover({
   const [iconEntries, setIconEntries] = useState<{ id: string; name: string; keywords: string }[]>([]);
   const [emojiEntries, setEmojiEntries] = useState<{ emoji: string; name: string; keywords: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [lucideModule, setLucideModule] = useState<Record<
+    string,
+    React.ComponentType<{ className?: string }>
+  > | null>(null);
 
   // Dynamic on-demand code-splitting of the 500KB icon/emoji database
   useEffect(() => {
     if (isOpen && iconEntries.length === 0) {
       setIsLoading(true);
-      import('../../iconLibrary')
-        .then((mod) => {
+      Promise.all([import('../../iconLibrary'), import('lucide-react')])
+        .then(([mod, lucide]) => {
           setIconEntries(mod.ALL_ICON_ENTRIES);
           setEmojiEntries(mod.ALL_EMOJI_ENTRIES);
+          setLucideModule(lucide as unknown as Record<string, React.ComponentType<{ className?: string }>>);
           setIsLoading(false);
         })
         .catch((err) => {
@@ -112,26 +116,29 @@ export function IconPickerPopover({
 
           {/* Grid View */}
           <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
-            {isLoading ? (
+            {isLoading || !lucideModule ? (
               <div className="flex flex-col items-center justify-center py-12 text-neutral-400 text-xs">
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
                 Loading glyph database...
               </div>
             ) : tab === 'Icon' ? (
               <div className="grid grid-cols-6 gap-2">
-                {filteredIcons.map((item) => (
+                {filteredIcons.map((item) => {
+                  const IconComp = lucideModule?.[item.name] ?? Sparkles;
+                  return (
                   <button
                     key={item.id}
                     onClick={() => onSelectIcon(item.name)}
                     className="p-3 rounded-xl bg-white/[0.03] hover:bg-blue-600 hover:text-white border border-white/5 flex flex-col items-center justify-center text-neutral-300 transition-all group"
                     title={item.name}
                   >
-                    <CustomPickerIcon name={item.name} className="w-5 h-5" />
+                    <IconComp className="w-5 h-5" />
                     <span className="text-[9px] font-mono mt-1.5 truncate max-w-full opacity-60 group-hover:opacity-100">
                       {item.name}
                     </span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="grid grid-cols-6 gap-2">

@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw } from '../icons';
 import { RATING_MAX, RATING_MIN, clampScore, ratingLabel } from '../utils/ratings';
 
 export interface RatingControlProps {

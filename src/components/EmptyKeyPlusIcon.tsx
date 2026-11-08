@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus } from '../icons';
 
 export const EmptyKeyPlusIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => {
   return (
