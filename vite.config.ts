@@ -57,7 +57,20 @@ export default defineConfig(() => {
       port: 3000,
       allowedHosts: true as true,
       hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // Never watch build/test artifacts: the Playwright report used to trigger
+      // spurious full reloads while the preview was open.
+      watch:
+        process.env.DISABLE_HMR === 'true'
+          ? null
+          : {
+              ignored: [
+                '**/dist/**',
+                '**/dist_electron/**',
+                '**/playwright-report/**',
+                '**/test-results/**',
+                '**/coverage/**',
+              ],
+            },
     },
     build: {
       chunkSizeWarningLimit: 1000,
